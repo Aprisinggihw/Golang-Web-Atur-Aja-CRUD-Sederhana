@@ -1,0 +1,105 @@
+package categorycontroller
+
+import (
+	"fmt"
+	"golang-web-crud/entities"
+	"golang-web-crud/models/categorymodel"
+	"net/http"
+	"strconv"
+	"text/template"
+	"time"
+)
+
+func Index(w http.ResponseWriter, r *http.Request) {
+	categories := categorymodel.GetAll()
+	data := map[string]any{
+		"categories": categories,
+	}
+
+	temp, err := template.ParseFiles("views/category/index.html")
+	if err != nil {
+		panic(err)
+	}
+
+	temp.Execute(w, data)
+}
+func Add(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		temp, err := template.ParseFiles("views/category/add.html")
+		if err != nil {
+			panic(err)
+		}
+		temp.Execute(w, nil)
+	}
+	if r.Method == "POST" {
+		var categories entities.Category
+		categories.Name = r.FormValue("name")
+		categories.CreatedAt = time.Now()
+		categories.UpdatedAt = time.Now()
+
+		if ok := categorymodel.Add(categories); !ok {
+			temp, err := template.ParseFiles("views/category/add.html")
+			if err != nil {
+				panic(err)
+			}
+			temp.Execute(w, nil)
+		}
+		http.Redirect(w, r, "/categories", http.StatusSeeOther)
+	}
+}
+
+func Edit(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		temp, err := template.ParseFiles("views/category/edit.html")
+		if err != nil {
+			panic(err)
+		}
+		
+		idString := r.URL.Query().Get("id")
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			fmt.Println("Error Scanning id Method GET")
+			panic(err)
+		}
+
+		category := categorymodel.Detail(id)
+		data := map[string]any{
+			"category": category,
+		}
+
+		temp.Execute(w, data)
+	}
+
+	if r.Method == "POST" {
+		var category entities.Category
+		var idString string = r.FormValue("id")
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			fmt.Println("Error Scanning id Method POST")
+			panic(err)
+		}
+
+		category.Name = r.FormValue("name")
+		category.UpdatedAt = time.Now()
+
+		if ok := categorymodel.Update(id, category); !ok {
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/categories", http.StatusSeeOther)
+	}
+}
+
+func Delete(w http.ResponseWriter, r *http.Request) {
+	idString := r.URL.Query().Get("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		fmt.Println("Error Scanning id func delete")
+		panic(err)
+	}
+	if err := categorymodel.Delete(id); err != nil {
+		fmt.Println("Error deleting category")
+		panic(err)
+	}
+	http.Redirect(w, r, "/categories", http.StatusSeeOther)
+}
